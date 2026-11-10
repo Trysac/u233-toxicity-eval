@@ -1,29 +1,31 @@
 # Architecture
 
-## Purpose
+## Overview
 
-`trysac-toxicity-eval` is a small, dependency-free Python library: Evaluate toxicity of model outputs with interchangeable classifiers: a classifier port, a lexicon baseline, an LLM classifier, thresholds and per-group flag rates
+`toxicity_eval` provides a unified evaluation framework for toxicity classifiers.
+The core abstraction is the `ClassifierPort` protocol, which any classifier can implement.
+The library includes two built-in classifiers:
 
-## Shape
+- `LexiconClassifier`: case-insensitive whole-word matching against user-provided term lists.
+- `LLMClassifier`: invokes an LLM (via the `LLMPort` protocol) and parses its JSON response.
 
-```text
-caller code --> toxicity_eval (public API in __init__.py)
-                    |
-                    +-- pure functions, no I/O, no global state
-```
+The `evaluate` function processes samples in batches, validates scores, groups by sample `group`,
+and computes per-label flag rates and per-group rates. It also enforces safety limits and emits
+events for monitoring.
 
-- **Public API**: the names listed in `__all__` of `src/toxicity_eval/__init__.py`. Anything else is
-  internal and may change without a major version.
-- **Errors**: invalid input raises built-in exceptions (`ValueError`, `TypeError`) with a clear
-  message; the library never prints or exits.
-- **Side effects**: none. If a feature needs I/O, isolate it in its own module behind a small
-  interface and record the choice in an ADR.
+## Key Design Decisions
 
-## Quality contract
+1. **Single report shape**: All classifiers produce `Mapping[str, float]` per text, normalizing
+   downstream analysis.
+2. **Validation before classification**: Sample size, text length, ID uniqueness, and threshold
+   validity are checked before any classification call, ensuring deterministic failures.
+3. **Error handling**: LLM classifier parsing errors are caught per sample and counted as errors,
+   while port classifier contract violations raise `ToxicityEvalError`.
+4. **Resource limits**: Lexicon size, sample count, text length, and flagged IDs are capped to
+   prevent unbounded memory or computation.
 
-`scripts/check.py` is the single definition of the gates; `fabrica.json` tells the factory and CI
-how to run it. See [TESTING.md](TESTING.md).
+## Limitations
 
-## Decisions
-
-Architecture decisions are recorded in [decisions/](decisions/) as numbered ADRs.
+- No bundled word lists or models; users provide their own.
+- Not a hosted moderation API client.
+- No calibration or multilingual normalization.

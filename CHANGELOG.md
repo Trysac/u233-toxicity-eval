@@ -9,4 +9,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added toxicity_eval package with classifier port, lexicon and LLM classifiers, evaluation with grouping and thresholds.
 - Initial project structure from the factory utility template.
